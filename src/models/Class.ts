@@ -1,5 +1,5 @@
 import mongoose, { Schema } from 'mongoose';
-import type { IClass } from '../types/types.js';
+import type { IClass } from '../types/types.ts';
 
 const classSchema = new Schema<IClass>(
   {

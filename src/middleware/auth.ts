@@ -1,10 +1,10 @@
-import type { Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import type { AuthenticatedRequest, JwtPayload } from '../types/types.js';
-import Class from '../models/Class.js';
+import type { JwtPayload } from '../types/types.ts';
+import Class from '../models/Class.ts';
 
 export const authenticate = (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction,
 ) => {
@@ -36,7 +36,7 @@ export const authenticate = (
 };
 
 export const teacherOnly = (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction,
 ) => {
@@ -49,7 +49,7 @@ export const teacherOnly = (
 };
 
 export const checkClassOwnership = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response,
   next: NextFunction,
 ) => {

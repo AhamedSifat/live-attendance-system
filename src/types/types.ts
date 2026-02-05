@@ -35,11 +35,6 @@ export interface JwtPayload {
   role: 'teacher' | 'student';
 }
 
-export interface AuthenticatedRequest extends Request {
-  classDoc: IClass;
-  user: JwtPayload;
-}
-
 export interface AuthenticatedWebSocket extends WebSocket {
   user: JwtPayload;
   isAlive: boolean;
