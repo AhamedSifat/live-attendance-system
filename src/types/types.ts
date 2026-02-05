@@ -6,6 +6,7 @@ export interface IUser {
   _id: mongoose.Types.ObjectId;
   name: string;
   email: string;
+  password: string;
   role: 'teacher' | 'student';
 }
 
@@ -17,6 +18,7 @@ export interface IClass {
 }
 
 export interface IAttendance {
+  _id: mongoose.Types.ObjectId;
   classId: mongoose.Types.ObjectId;
   studentId: mongoose.Types.ObjectId;
   status: 'present' | 'absent';
