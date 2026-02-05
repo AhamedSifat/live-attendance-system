@@ -108,4 +108,20 @@ router.get('/:id', authenticate, async (req: Request, res: Response) => {
   }
 });
 
+router.get(
+  '/students',
+  authenticate,
+  teacherOnly,
+  async (req: Request, res: Response) => {
+    try {
+      const students = await User.find({ role: 'student' }).select(
+        'name email',
+      );
+      res.json({ success: true, data: students });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
 export default router;
