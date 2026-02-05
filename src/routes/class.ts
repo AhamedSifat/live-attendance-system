@@ -7,6 +7,7 @@ import {
 } from '../middleware/auth.ts';
 import { addStudentSchema, createClassSchema } from '../utils/schemas.ts';
 import User from '../models/User.ts';
+import Attendance from '../models/Attendance.ts';
 
 const router = express.Router();
 
@@ -123,5 +124,42 @@ router.get(
     }
   },
 );
+
+router.get('/:id/my-attendance', authenticate, async (req, res) => {
+  try {
+    if (req.user.role !== 'student') {
+      return res
+        .status(403)
+        .json({ success: false, error: 'Forbidden, student access required' });
+    }
+
+    const classDoc = await Class.findById(req.params.id);
+    if (!classDoc)
+      return res.status(404).json({ success: false, error: 'Class not found' });
+
+    const enrolled = classDoc.studentIds.some(
+      (id: any) => id.toString() === req.user.userId,
+    );
+    if (!enrolled)
+      return res
+        .status(403)
+        .json({ success: false, error: 'Forbidden, not enrolled' });
+
+    const record = await Attendance.findOne({
+      classId: req.params.id,
+      studentId: req.user.userId,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        classId: req.params.id,
+        status: record ? record.status : null,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 export default router;
