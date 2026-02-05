@@ -38,7 +38,7 @@ router.post(
   authenticate,
   teacherOnly,
   checkClassOwnership,
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       const validated = addStudentSchema.parse(req.body);
       const student = await User.findOne({
@@ -69,5 +69,43 @@ router.post(
     }
   },
 );
+
+router.get('/:id', authenticate, async (req: Request, res: Response) => {
+  try {
+    const classDoc = await Class.findById(req.params.id)
+      .populate('teacherId', 'name email')
+      .populate('studentIds', 'name email');
+
+    if (!classDoc)
+      return res.status(404).json({ success: false, error: 'Class not found' });
+
+    const isTeacher = classDoc.teacherId._id.toString() === req.user.userId;
+    const isStudent = classDoc.studentIds.some(
+      (s: any) => s._id.toString() === req.user.userId,
+    );
+
+    if (!isTeacher && !isStudent) {
+      return res.status(403).json({ success: false, error: 'Forbidden' });
+    }
+
+    const students = classDoc.studentIds.map((s: any) => ({
+      _id: s._id,
+      name: s.name,
+      email: s.email,
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        _id: classDoc._id,
+        className: classDoc.className,
+        teacherId: classDoc.teacherId._id,
+        students,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 export default router;
