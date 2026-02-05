@@ -1,7 +1,7 @@
 import express from 'express';
-import Class from '../models/Class.js';
-import { authenticate, teacherOnly } from '../middleware/auth.js';
-import { startAttendanceSchema } from '../utils/schemas.js';
+import Class from '../models/Class.ts';
+import { authenticate, teacherOnly } from '../middleware/auth.ts';
+import { startAttendanceSchema } from '../utils/schemas.ts';
 import { startSession } from '../websocket.ts';
 
 const router = express.Router();
