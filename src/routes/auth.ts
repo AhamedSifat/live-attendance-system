@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.ts';
 import { signupSchema, loginSchema } from '../utils/schemas.ts';
+import { authenticate } from '../middleware/auth.ts';
 import type { Request, Response } from 'express';
 
 const router = express.Router();
@@ -62,6 +63,13 @@ router.post('/login', async (req: Request, res: Response) => {
         .json({ success: false, error: 'Invalid request schema' });
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+router.get('/me', authenticate, async (req: Request, res: Response) => {
+  if (!req.user)
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  const user = await User.findById(req.user.userId).select('-password');
+  res.json({ success: true, data: user });
 });
 
 export default router;
