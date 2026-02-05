@@ -5,6 +5,8 @@ import { connectDB } from './config/db.ts';
 import authRoutes from './routes/auth.ts';
 import classRoutes from './routes/class.ts';
 import attendanceRoutes from './routes/attendance.ts';
+import { createWss } from './websocket.ts';
+import http from 'http';
 
 dotenv.config();
 connectDB();
@@ -16,7 +18,10 @@ app.use('/auth', authRoutes);
 app.use('/class', classRoutes);
 app.use('/attendance', attendanceRoutes);
 
+const httpServer = http.createServer(app);
+createWss(httpServer);
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
 });
