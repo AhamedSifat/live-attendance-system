@@ -66,10 +66,20 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 router.get('/me', authenticate, async (req: Request, res: Response) => {
-  if (!req.user)
+  if (!req.user) {
     return res.status(401).json({ success: false, error: 'Unauthorized' });
-  const user = await User.findById(req.user.userId).select('-password');
-  res.json({ success: true, data: user });
+  }
+
+  try {
+    const user = await User.findById(req.user.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    res.json({ success: true, data: user });
+  } catch (err) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
 });
 
 export default router;
