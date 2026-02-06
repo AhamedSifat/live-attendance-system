@@ -78,16 +78,22 @@ router.get('/:id', authenticate, async (req: Request, res: Response) => {
       .populate('teacherId', 'name email')
       .populate('studentIds', 'name email');
 
-    if (!classDoc)
+    if (!classDoc) {
       return res.status(404).json({ success: false, error: 'Class not found' });
+    }
 
-    const isTeacher = classDoc.teacherId._id.toString() === req.user.userId;
+    const isTeacher =
+      classDoc.teacherId?._id.toString() === req.user.userId.toString();
+
     const isStudent = classDoc.studentIds.some(
-      (s: any) => s._id.toString() === req.user.userId,
+      (s: any) => s._id.toString() === req.user.userId.toString(),
     );
 
     if (!isTeacher && !isStudent) {
-      return res.status(403).json({ success: false, error: 'Forbidden' });
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden, not class teacher',
+      });
     }
 
     const students = classDoc.studentIds.map((s: any) => ({
