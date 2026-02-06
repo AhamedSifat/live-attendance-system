@@ -1,6 +1,6 @@
 import { WebSocketServer } from 'ws';
 import jwt from 'jsonwebtoken';
-import { AuthenticatedWebSocket } from './types/types.ts';
+import type { AuthenticatedWebSocket } from './types/types.ts';
 
 let activeSession: {
   classId: string | null;
@@ -12,6 +12,17 @@ let activeSession: {
   attendance: new Map(),
 };
 
+function broadcastToStudents(wss: WebSocketServer, event: string, data: any) {
+  const message = JSON.stringify({ event, data });
+  wss.clients.forEach((client: any) => {
+    if (
+      client.readyState === WebSocket.OPEN &&
+      client.user?.role === 'student'
+    ) {
+      client.send(message);
+    }
+  });
+}
 export function startSession(classId: string) {
   activeSession = {
     classId,
@@ -36,7 +47,7 @@ export function getActiveSession() {
 }
 
 export const createWss = (httpServer: any) => {
-  const wss = new WebSocketServer({ server: httpServer });
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
 
   const interval = setInterval(() => {
     wss.clients.forEach((ws: any) => {
@@ -85,8 +96,52 @@ export const createWss = (httpServer: any) => {
       return;
     }
 
+    ws.on('message', async (message: Buffer) => {
+      const { event, data } = JSON.parse(message.toString());
+      try {
+        switch (event) {
+          case 'ATTENDANCE_MARKED':
+            await handleAttendanceMarked(ws, wss, data);
+            break;
+          default:
+            ws.send(
+              JSON.stringify({
+                event: 'ERROR',
+                data: { message: 'Unknown event' },
+              }),
+            );
+        }
+      } catch (err: any) {
+        console.error('WebSocket error:', err);
+        ws.send(
+          JSON.stringify({
+            event: 'ERROR',
+            data: { message: err.message || 'Internal server error' },
+          }),
+        );
+      }
+    });
+
     ws.on('close', () => {
       console.log(`❌ Client disconnected: ${ws.user?.userId}`);
     });
   });
 };
+
+async function handleAttendanceMarked(
+  ws: AuthenticatedWebSocket,
+  wss: WebSocketServer,
+  data: any,
+) {
+  if (ws.user.role !== 'teacher')
+    throw new Error('Forbidden, teacher event only');
+  if (!activeSession.classId) throw new Error('No active attendance session');
+
+  const { studentId, status } = data;
+  if (!studentId || !['present', 'absent'].includes(status)) {
+    throw new Error('Invalid studentId or status');
+  }
+
+  activeSession.attendance.set(studentId, status);
+  broadcastToStudents(wss, 'ATTENDANCE_MARKED', { studentId, status });
+}

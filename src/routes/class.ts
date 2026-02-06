@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import Class from '../models/Class.ts';
 import {
   authenticate,
@@ -8,6 +8,7 @@ import {
 import { addStudentSchema, createClassSchema } from '../utils/schemas.ts';
 import User from '../models/User.ts';
 import Attendance from '../models/Attendance.ts';
+import type { Request, Response } from 'express';
 
 const router = express.Router();
 
