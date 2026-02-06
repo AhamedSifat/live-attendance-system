@@ -15,7 +15,7 @@ This project is a complete backend implementation for a live attendance system, 
 
 **Specification Source**: [Notion Spec](https://brindle-goal-102.notion.site/Backend-WebSocket-Live-Attendance-System-2c646b36b2e980b09b42d7c0240a8170)
 
-**Test Results**: 32 tests passed using the provided test app: [https://github.com/rahul-MyGit/mid-test](https://github.com/rahul-MyGit/mid-test)
+**Test Results**: 66/75 tests passed using the provided test app: [https://github.com/rahul-MyGit/mid-test](https://github.com/rahul-MyGit/mid-test)
 
 ## Tech Stack
 
