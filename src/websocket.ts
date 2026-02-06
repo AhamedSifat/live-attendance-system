@@ -103,6 +103,11 @@ export const createWss = (httpServer: any) => {
           case 'ATTENDANCE_MARKED':
             await handleAttendanceMarked(ws, wss, data);
             break;
+
+          case 'TODAY_SUMMARY':
+            await handleTodaySummary(ws, wss);
+            break;
+
           default:
             ws.send(
               JSON.stringify({
@@ -144,4 +149,20 @@ async function handleAttendanceMarked(
 
   activeSession.attendance.set(studentId, status);
   broadcastToStudents(wss, 'ATTENDANCE_MARKED', { studentId, status });
+}
+
+async function handleTodaySummary(
+  ws: AuthenticatedWebSocket,
+  wss: WebSocketServer,
+) {
+  if (ws.user.role !== 'teacher')
+    throw new Error('Forbidden, teacher event only');
+  if (!activeSession.classId) throw new Error('No active attendance session');
+
+  const values = Array.from(activeSession.attendance.values());
+  const present = values.filter((s: string) => s === 'present').length;
+  const absent = values.filter((s: string) => s === 'absent').length;
+  const total = present + absent;
+
+  broadcastToStudents(wss, 'TODAY_SUMMARY', { present, absent, total });
 }
