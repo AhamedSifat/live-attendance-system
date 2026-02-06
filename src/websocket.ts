@@ -148,13 +148,35 @@ async function handleAttendanceMarked(
   wss: WebSocketServer,
   data: any,
 ) {
-  if (ws.user.role !== 'teacher')
-    throw new Error('Forbidden, teacher event only');
-  if (!activeSession.classId) throw new Error('No active attendance session');
+  if (ws.user.role !== 'teacher') {
+    ws.send(
+      JSON.stringify({
+        event: 'ERROR',
+        data: { message: 'Forbidden, teacher event only' },
+      }),
+    );
+    return;
+  }
+  if (!activeSession.classId) {
+    ws.send(
+      JSON.stringify({
+        event: 'ERROR',
+        data: { message: 'No active attendance session' },
+      }),
+    );
+
+    return;
+  }
 
   const { studentId, status } = data;
   if (!studentId || !['present', 'absent'].includes(status)) {
-    throw new Error('Invalid studentId or status');
+    ws.send(
+      JSON.stringify({
+        event: 'ERROR',
+        data: { message: 'Invalid studentId or status' },
+      }),
+    );
+    return;
   }
 
   activeSession.attendance.set(studentId, status);
@@ -165,9 +187,24 @@ async function handleTodaySummary(
   ws: AuthenticatedWebSocket,
   wss: WebSocketServer,
 ) {
-  if (ws.user.role !== 'teacher')
-    throw new Error('Forbidden, teacher event only');
-  if (!activeSession.classId) throw new Error('No active attendance session');
+  if (ws.user.role !== 'teacher') {
+    ws.send(
+      JSON.stringify({
+        event: 'ERROR',
+        data: { message: 'Forbidden, teacher event only' },
+      }),
+    );
+    return;
+  }
+  if (!activeSession.classId) {
+    ws.send(
+      JSON.stringify({
+        event: 'ERROR',
+        data: { message: 'No active attendance session' },
+      }),
+    );
+    return;
+  }
 
   const values = Array.from(activeSession.attendance.values());
   const present = values.filter((s: string) => s === 'present').length;
@@ -178,9 +215,24 @@ async function handleTodaySummary(
 }
 
 async function handleMyAttendance(ws: AuthenticatedWebSocket) {
-  if (ws.user.role !== 'student')
-    throw new Error('Forbidden, student event only');
-  if (!activeSession.classId) throw new Error('No active attendance session');
+  if (ws.user.role !== 'student') {
+    ws.send(
+      JSON.stringify({
+        event: 'ERROR',
+        data: { message: 'Forbidden, student event only' },
+      }),
+    );
+    return;
+  }
+  if (!activeSession.classId) {
+    ws.send(
+      JSON.stringify({
+        event: 'ERROR',
+        data: { message: 'No active attendance session' },
+      }),
+    );
+    return;
+  }
 
   const status =
     activeSession.attendance.get(ws.user.userId) || 'not yet updated';
@@ -193,43 +245,75 @@ async function handleMyAttendance(ws: AuthenticatedWebSocket) {
 }
 
 async function handleDone(ws: AuthenticatedWebSocket, wss: WebSocketServer) {
-  if (ws.user.role !== 'teacher')
-    throw new Error('Forbidden, teacher event only');
-  if (!activeSession.classId) throw new Error('No active attendance session');
-
-  const classDoc = await Class.findById(activeSession.classId);
-  if (!classDoc || classDoc.teacherId.toString() !== ws.user.userId) {
-    throw new Error('Forbidden, not class teacher');
-  }
-
-  for (const studentId of classDoc.studentIds) {
-    const sid = studentId.toString();
-    if (!activeSession.attendance.has(sid)) {
-      activeSession.attendance.set(sid, 'absent');
+  try {
+    if (ws.user.role !== 'teacher') {
+      ws.send(
+        JSON.stringify({
+          event: 'ERROR',
+          data: { message: 'Forbidden, teacher event only' },
+        }),
+      );
+      return;
     }
+    if (!activeSession.classId) {
+      ws.send(
+        JSON.stringify({
+          event: 'ERROR',
+          data: { message: 'No active attendance session' },
+        }),
+      );
+      return;
+    }
+
+    const classDoc = await Class.findById(activeSession.classId);
+    if (!classDoc || classDoc.teacherId.toString() !== ws.user.userId) {
+      ws.send(
+        JSON.stringify({
+          event: 'ERROR',
+          data: { message: 'Forbidden, not class teacher' },
+        }),
+      );
+      return;
+    }
+
+    for (const studentId of classDoc.studentIds) {
+      const sid = studentId.toString();
+      if (!activeSession.attendance.has(sid)) {
+        activeSession.attendance.set(sid, 'absent');
+      }
+    }
+
+    const records = Array.from(activeSession.attendance.entries()).map(
+      ([studentId, status]) => ({
+        classId: activeSession.classId,
+        studentId,
+        status,
+      }),
+    );
+
+    await Attendance.insertMany(records);
+
+    const values = Array.from(activeSession.attendance.values());
+    const present = values.filter((s: string) => s === 'present').length;
+    const absent = values.filter((s: string) => s === 'absent').length;
+    const total = present + absent;
+
+    broadcastToStudents(wss, 'DONE', {
+      message: 'Attendance persisted',
+      present,
+      absent,
+      total,
+    });
+  } catch (error) {
+    console.error('Error in handleDone:', error);
+    ws.send(
+      JSON.stringify({
+        event: 'ERROR',
+        data: { message: 'Error in handleDone' },
+      }),
+    );
+    return;
+  } finally {
+    clearSession();
   }
-
-  const records = Array.from(activeSession.attendance.entries()).map(
-    ([studentId, status]) => ({
-      classId: activeSession.classId,
-      studentId,
-      status,
-    }),
-  );
-
-  await Attendance.insertMany(records);
-
-  const values = Array.from(activeSession.attendance.values());
-  const present = values.filter((s: string) => s === 'present').length;
-  const absent = values.filter((s: string) => s === 'absent').length;
-  const total = present + absent;
-
-  broadcastToStudents(wss, 'DONE', {
-    message: 'Attendance persisted',
-    present,
-    absent,
-    total,
-  });
-
-  clearSession();
 }
