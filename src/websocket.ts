@@ -1,6 +1,8 @@
 import { WebSocketServer } from 'ws';
 import jwt from 'jsonwebtoken';
 import type { AuthenticatedWebSocket } from './types/types.ts';
+import Attendance from './models/Attendance.ts';
+import Class from './models/Class.ts';
 
 let activeSession: {
   classId: string | null;
@@ -112,6 +114,10 @@ export const createWss = (httpServer: any) => {
             await handleMyAttendance(ws);
             break;
 
+          case 'DONE':
+            await handleDone(ws, wss);
+            break;
+
           default:
             ws.send(
               JSON.stringify({
@@ -184,4 +190,46 @@ async function handleMyAttendance(ws: AuthenticatedWebSocket) {
       data: { status },
     }),
   );
+}
+
+async function handleDone(ws: AuthenticatedWebSocket, wss: WebSocketServer) {
+  if (ws.user.role !== 'teacher')
+    throw new Error('Forbidden, teacher event only');
+  if (!activeSession.classId) throw new Error('No active attendance session');
+
+  const classDoc = await Class.findById(activeSession.classId);
+  if (!classDoc || classDoc.teacherId.toString() !== ws.user.userId) {
+    throw new Error('Forbidden, not class teacher');
+  }
+
+  for (const studentId of classDoc.studentIds) {
+    const sid = studentId.toString();
+    if (!activeSession.attendance.has(sid)) {
+      activeSession.attendance.set(sid, 'absent');
+    }
+  }
+
+  const records = Array.from(activeSession.attendance.entries()).map(
+    ([studentId, status]) => ({
+      classId: activeSession.classId,
+      studentId,
+      status,
+    }),
+  );
+
+  await Attendance.insertMany(records);
+
+  const values = Array.from(activeSession.attendance.values());
+  const present = values.filter((s: string) => s === 'present').length;
+  const absent = values.filter((s: string) => s === 'absent').length;
+  const total = present + absent;
+
+  broadcastToStudents(wss, 'DONE', {
+    message: 'Attendance persisted',
+    present,
+    absent,
+    total,
+  });
+
+  clearSession();
 }
