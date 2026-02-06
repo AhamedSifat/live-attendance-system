@@ -108,6 +108,10 @@ export const createWss = (httpServer: any) => {
             await handleTodaySummary(ws, wss);
             break;
 
+          case 'MY_ATTENDANCE':
+            await handleMyAttendance(ws);
+            break;
+
           default:
             ws.send(
               JSON.stringify({
@@ -165,4 +169,19 @@ async function handleTodaySummary(
   const total = present + absent;
 
   broadcastToStudents(wss, 'TODAY_SUMMARY', { present, absent, total });
+}
+
+async function handleMyAttendance(ws: AuthenticatedWebSocket) {
+  if (ws.user.role !== 'student')
+    throw new Error('Forbidden, student event only');
+  if (!activeSession.classId) throw new Error('No active attendance session');
+
+  const status =
+    activeSession.attendance.get(ws.user.userId) || 'not yet updated';
+  ws.send(
+    JSON.stringify({
+      event: 'MY_ATTENDANCE',
+      data: { status },
+    }),
+  );
 }
